@@ -15,7 +15,7 @@ def filter_current_day_files(source_path):
         if today in file and file.endswith('.bak')
     ]
 
-def create_backup(files, source_path, destination_path):
+# def create_backup(files, source_path, destination_path):
     """
     Copies the filtered files to the destination folder and creates a zip archive.
     """
@@ -37,6 +37,38 @@ def create_backup(files, source_path, destination_path):
         zip_file = shutil.make_archive(backup_dir, 'zip', backup_dir)
         print("Backup Complete..! Created zip archive.")
         return zip_file  # Return the zip file path
+    except Exception as e:
+        print(f"Error during backup creation: {e}")
+        return None
+def create_backup(files, source_path, destination_path):
+    """
+    Copies the filtered files to the destination folder and creates a zip archive.
+    Deletes the intermediate folder after zipping.
+    """
+    # Get today's date for folder and zip name
+    date_name = datetime.date.today().strftime('%Y-%m-%d')
+    backup_dir = os.path.join(destination_path, date_name)
+
+    # Ensure the folder exists
+    os.makedirs(backup_dir, exist_ok=True)
+
+    try:
+        # Copy files to the temporary backup folder
+        for file in files:
+            source_file = os.path.join(source_path, file)
+            destination_file = os.path.join(backup_dir, file)
+            shutil.copy2(source_file, destination_file)
+            print(f"Copied: {file} to {destination_file}")
+
+        # Create a ZIP archive of the folder
+        zip_file = shutil.make_archive(backup_dir, 'zip', backup_dir)
+        print("Backup Complete..! Created zip archive.")
+
+        # Remove the temporary backup folder
+        shutil.rmtree(backup_dir)
+        print(f"Removed temporary folder: {backup_dir}")
+
+        return zip_file  # Return the path of the ZIP file
     except Exception as e:
         print(f"Error during backup creation: {e}")
         return None
@@ -68,13 +100,13 @@ def upload_to_s3(file_path, bucket_name, s3_folder, aws_access_key, aws_secret_k
         print(f"Error during S3 upload: {e}")
 
 # User-defined paths and credentials
-source_path = Path(r"")  # Use a raw string
-destination_path = Path(r"")
+source_path = Path(r"D:\\DBBACKUP\\ODINFEED")  # Use a raw string
+destination_path = Path(r"D:\\CloudBackup\\Zip\\OdinFeed")
 
-bucket_name = "managerpro"  # Replace with your S3 bucket name
+bucket_name = "odinfeed"  # Replace with your S3 bucket name
 s3_folder = datetime.date.today().strftime('%Y-%m-%d')  # Date-based folder in S3
-aws_access_key = "***********"  # Replace with your AWS access key
-aws_secret_key = "**************"  # Replace with your AWS secret key
+aws_access_key = "********************"  # Replace with your AWS access key
+aws_secret_key = "******************"  # Replace with your AWS secret key
 region_name = "ap-southeast-2"  # Replace with your S3 bucket region
 
 # Filter files for the current date
