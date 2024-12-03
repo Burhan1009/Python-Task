@@ -5,48 +5,37 @@ import boto3
 from pathlib import Path
 from botocore.exceptions import NoCredentialsError
 
-def filter_current_day_files(source_path):
+def filter_previous_day_files(source_path):
     """
-    Filters the files in the source directory to include only those related to today's date.
+    Filters the files in the source directory to include only those related to yesterday's date.
     """
-    today = datetime.date.today().strftime('%Y_%m_%d')
+    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y_%m_%d')
     return [
         file for file in os.listdir(source_path)
-        if today in file and file.endswith('.bak')
+        if yesterday in file and file.endswith('.bak')
     ]
 
-# def create_backup(files, source_path, destination_path):
+def clean_old_backups(destination_path, allowed_date):
     """
-    Copies the filtered files to the destination folder and creates a zip archive.
+    Deletes folders in the destination_path that do not match the allowed_date.
     """
-    # Get today's date for the folder name
-    date_name = datetime.date.today().strftime('%Y-%m-%d')
-    backup_dir = os.path.join(destination_path, date_name)
-
-    # Ensure the date-named directory exists
-    os.makedirs(backup_dir, exist_ok=True)
-
     try:
-        for file in files:
-            source_file = os.path.join(source_path, file)
-            destination_file = os.path.join(backup_dir, file)
-            shutil.copy2(source_file, destination_file)
-            print(f"Copied: {file} to {destination_file}")
-
-        # Create a zip archive of the backup folder
-        zip_file = shutil.make_archive(backup_dir, 'zip', backup_dir)
-        print("Backup Complete..! Created zip archive.")
-        return zip_file  # Return the zip file path
+        for folder in os.listdir(destination_path):
+            folder_path = os.path.join(destination_path, folder)
+            # Check if the folder name matches the allowed_date and is a directory
+            if os.path.isdir(folder_path) and folder != allowed_date:
+                shutil.rmtree(folder_path)
+                print(f"Deleted old backup folder: {folder_path}")
     except Exception as e:
-        print(f"Error during backup creation: {e}")
-        return None
+        print(f"Error during old backup cleanup: {e}")
+
 def create_backup(files, source_path, destination_path):
     """
     Copies the filtered files to the destination folder and creates a zip archive.
     Deletes the intermediate folder after zipping.
     """
-    # Get today's date for folder and zip name
-    date_name = datetime.date.today().strftime('%Y-%m-%d')
+    # Get yesterday's date for folder and zip name
+    date_name = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
     backup_dir = os.path.join(destination_path, date_name)
 
     # Ensure the folder exists
@@ -100,24 +89,28 @@ def upload_to_s3(file_path, bucket_name, s3_folder, aws_access_key, aws_secret_k
         print(f"Error during S3 upload: {e}")
 
 # User-defined paths and credentials
-source_path = Path(r"D:\\DBBACKUP\\ODINFEED")  # Use a raw string
-destination_path = Path(r"D:\\CloudBackup\\Zip\\OdinFeed")
+source_path = Path(r"\\192.22.54.7\\f$\\Xtremsoft\\DbBackUp")  # Use a raw string
+destination_path = Path(r"D:\\CloudBackup\\Zip\\kyc")
 
-bucket_name = "odinfeed"  # Replace with your S3 bucket name
-s3_folder = datetime.date.today().strftime('%Y-%m-%d')  # Date-based folder in S3
-aws_access_key = "********************"  # Replace with your AWS access key
-aws_secret_key = "******************"  # Replace with your AWS secret key
-region_name = "ap-southeast-2"  # Replace with your S3 bucket region
+bucket_name = "backupkyc"  # Replace with your S3 bucket name
+s3_folder = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')  # Yesterday's date for S3 folder
+aws_access_key = "*************************"  # Replace with your AWS access key
+aws_secret_key = "*************************"  # Replace with your AWS secret key
+region_name = "ap-southeast-1"  # Replace with your S3 bucket region
 
-# Filter files for the current date
-current_day_files = filter_current_day_files(source_path)
+# Filter files for the previous date
+previous_day_files = filter_previous_day_files(source_path)
 
-if current_day_files:
+if previous_day_files:
     # Create backup
-    zip_file = create_backup(current_day_files, source_path, destination_path)
+    zip_file = create_backup(previous_day_files, source_path, destination_path)
+
+    # Clean up old backups
+    allowed_date = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    clean_old_backups(destination_path, allowed_date)
 
     # Upload to S3 if backup is successful
     if zip_file:
         upload_to_s3(zip_file, bucket_name, s3_folder, aws_access_key, aws_secret_key, region_name)
 else:
-    print("No files found for the current date.")
+    print("No files found for yesterday's date.")
