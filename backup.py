@@ -7,25 +7,26 @@ from botocore.exceptions import NoCredentialsError
 
 def filter_previous_day_files(source_path):
     """
-    Filters the files in the source directory to include only those related to yesterday's date.
+    Filters the files in the source directory to include only those related to yesterday's date
+    based on the 'DDMMYYYY' format in file names.
     """
-    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y_%m_%d')
+    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%d%m%Y%H%M%S')
     return [
         file for file in os.listdir(source_path)
-        if yesterday in file and file.endswith('.bak')
+        if yesterday in file and file.endswith('.log')
     ]
 
 def clean_old_backups(destination_path, allowed_date):
     """
-    Deletes folders in the destination_path that do not match the allowed_date.
+    Deletes zip files in the destination_path that do not match the allowed_date.
     """
     try:
-        for folder in os.listdir(destination_path):
-            folder_path = os.path.join(destination_path, folder)
-            # Check if the folder name matches the allowed_date and is a directory
-            if os.path.isdir(folder_path) and folder != allowed_date:
-                shutil.rmtree(folder_path)
-                print(f"Deleted old backup folder: {folder_path}")
+        for file in os.listdir(destination_path):
+            file_path = os.path.join(destination_path, file)
+            # Check if the file is a zip archive and does not match the allowed_date
+            if file.endswith('.zip') and allowed_date not in file:
+                os.remove(file_path)
+                print(f"Deleted old backup file: {file_path}")
     except Exception as e:
         print(f"Error during old backup cleanup: {e}")
 
@@ -89,14 +90,14 @@ def upload_to_s3(file_path, bucket_name, s3_folder, aws_access_key, aws_secret_k
         print(f"Error during S3 upload: {e}")
 
 # User-defined paths and credentials
-source_path = Path(r"\\192.22.54.7\\f$\\Xtremsoft\\DbBackUp")  # Use a raw string
-destination_path = Path(r"D:\\CloudBackup\\Zip\\kyc")
+source_path = Path(r"\\192.22.54.15\\e$\\ORABACKUP")  # Use a raw string
+destination_path = Path(r"D:\\Finkorp")
 
-bucket_name = "backupkyc"  # Replace with your S3 bucket name
+bucket_name = "finkorpbackup"  # Replace with your S3 bucket name
 s3_folder = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')  # Yesterday's date for S3 folder
-aws_access_key = "*************************"  # Replace with your AWS access key
-aws_secret_key = "*************************"  # Replace with your AWS secret key
-region_name = "ap-southeast-1"  # Replace with your S3 bucket region
+aws_access_key = ""  # Replace with your AWS access key
+aws_secret_key = ""  # Replace with your AWS secret key
+region_name = ""  # Replace with your S3 bucket region
 
 # Filter files for the previous date
 previous_day_files = filter_previous_day_files(source_path)
